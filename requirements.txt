@@ -1,3 +1,5 @@
-fbs
-PyQt6
-requests
+PyQt6==6.10.0
+matplotlib==3.10.7
+numpy==2.3.0
+scipy==1.16.3
+scikit-learn==1.7.2
