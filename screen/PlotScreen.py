@@ -11,21 +11,18 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QAction
 from sklearn.preprocessing import normalize
+from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-
-def read_jsonl_file(path):
-    data = []
-    with open(path, "r", encoding="utf-8") as infile:
-        for line in infile:
-            data.append(json.loads(line))
-    return data
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+from matplotlib.patches import Circle
 
 class SilhouetteWorker(QThread):
     progress = pyqtSignal(str)
-    finished = pyqtSignal(list, int, list, list, list, list) 
+    finished = pyqtSignal(list, int, list, list, list, list, object, object, object)
 
     def __init__(self, X, topics):
         super().__init__()
@@ -42,7 +39,7 @@ class SilhouetteWorker(QThread):
             score = silhouette_score(self.X, kmeans.labels_)
             scores.append(score)
         # best_k = K[int(np.argmax(scores))]
-        best_k = 6
+        best_k = 5
         """Tính độ mạnh topic trong background"""
         topics = []
         values = []
@@ -54,16 +51,20 @@ class SilhouetteWorker(QThread):
         # X_norm = self.X
         kmeans = KMeans(n_clusters=best_k, random_state=42, n_init=10)
         labels = kmeans.fit_predict(X_norm)
+        centers = kmeans.cluster_centers_
         unique, counts = np.unique(labels, return_counts=True)
 
-        self.finished.emit(scores, best_k, topics, values, unique, counts)
+        self.finished.emit(scores, best_k, topics, values, unique, counts, X_norm, centers, labels)
 
 class PlotScreen(QWidget):
-    def __init__(self):
+    def __init__(self,term_dict, term_list, term_emb_data, doc_emb_data, topic_data):
         super().__init__()
         #init variabels
-        self.term_dict = {}
-        self.term_list = []
+        self.term_dict = term_dict
+        self.term_list = term_list
+        self.term_emb_data = term_emb_data
+        self.doc_emb_data = doc_emb_data
+        self.topics_data = topic_data
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -89,39 +90,12 @@ class PlotScreen(QWidget):
         self.figure = Figure(figsize=(4, 3))
         self.canvas = FigureCanvas(self.figure)
         self.container_layout.addWidget(self.canvas)
-
-        #Read file
-        self.read_file()
         
         # Plot
         if self.term_dict:
-            X = np.array(list(self.term_dict.values()))
-            self.start_plot_thread(X, self.topics_data)
+            self.X = np.array(list(self.term_dict.values()))
+            self.start_plot_thread(self.X, self.topics_data)
 
-    def read_file(self):
-        """Đọc embedding từ file"""
-        base_path = Path(os.getcwd())
-        term_emb_path = base_path / "term_embeddings.jsonl"
-        term_nei_path = base_path / "term_neighbors_samples.jsonl"
-        topic_path = base_path / "topics.jsonl"
-
-
-        try:
-            emb_data = read_jsonl_file(term_emb_path)
-            nei_data = read_jsonl_file(term_nei_path)
-            topic_data = read_jsonl_file(topic_path)
-        except FileNotFoundError:
-            self.status_label.setText("One or more JSON files not found in current directory!")
-            return
-        
-        self.term_emb_data = emb_data
-        self.term_nei_data = nei_data
-        self.topics_data = topic_data
-
-        for item in emb_data:
-            if "term" in item and "embedding" in item:
-                self.term_list.append(item["term"])
-                self.term_dict[item["term"]] = np.array(item["embedding"])
 
     def start_plot_thread(self, X, topics):
         """Chạy tính toán silhouette score trong thread riêng"""
@@ -130,7 +104,7 @@ class PlotScreen(QWidget):
         self.worker.finished.connect(self.plot)
         self.worker.start()
 
-    def plot(self, scores, best_k, topics, values, unique, counts):
+    def plot(self, scores, best_k, topics, values, unique, counts, X_norm, centers, labels):
         """Vẽ biểu đồ sau khi thread hoàn tất"""
         self.silhouette_scores = scores
         self.best_k = best_k
@@ -138,9 +112,13 @@ class PlotScreen(QWidget):
         self.strengthen_values =  values
         self.kmean_unique = unique
         self.kmean_counts = counts
+        self.X_norm = X_norm
+        self.kmeans_centers = centers
+        self.kmeans_labels = labels
 
         self.add_plot_section("📊 Biểu đồ 1: Silhouette Score", self.plot_silhouette)
         self.add_plot_section("", self.plot_kmeans, False)
+        self.add_plot_section("", self.plot_kmeans_scatter, False)
         self.add_plot_section("📈 Biểu đồ 2: Topic Strength", self.plot_topics)
 
         self.status_label.setText(f"Plot completed")
@@ -249,3 +227,64 @@ class PlotScreen(QWidget):
                     canvas.draw_idle()  
 
         canvas.mpl_connect("motion_notify_event", on_motion)
+
+    def plot_kmeans_scatter(self, figure):
+        """Vẽ scatter các điểm + tâm cụm + vòng tròn KMeans"""
+        pca = PCA(n_components=2)
+        self.X2d = pca.fit_transform(self.X_norm)
+        self.centers2d = pca.transform(self.kmeans_centers)
+
+
+        ax = figure.add_subplot(111)
+
+        X2d = self.X2d
+        labels = self.kmeans_labels
+        centers2d = self.centers2d
+        k = self.best_k
+
+        # Bảng màu
+        colors = cm.get_cmap('tab10')(np.linspace(0, 1, k))
+
+        # Vẽ điểm theo từng cụm
+        for i in range(k):
+            pts = X2d[labels == i]
+            ax.scatter(
+                pts[:, 0], pts[:, 1],
+                s=25, alpha=0.7,
+                color=colors[i],
+                label=f"Cluster {i}"
+            )
+
+        # Vẽ centroid
+        ax.scatter(
+            centers2d[:, 0], centers2d[:, 1],
+            s=140, marker='X',
+            color='black', label="Centroids"
+        )
+
+        # Vẽ vòng tròn bao cụm (bán kính = khoảng cách trung bình các điểm trong cụm)
+        # for i in range(k):
+        #     pts = X2d[labels == i]
+        #     center = centers2d[i]
+
+        #     if len(pts) == 0:
+        #         continue
+
+        #     dists = np.sqrt(np.sum((pts - center) ** 2, axis=1))
+        #     radius = np.mean(dists)
+
+        #     circle = Circle(
+        #         center, radius,
+        #         color=colors[i],
+        #         alpha=0.18,
+        #         linewidth=1.5,
+        #         fill=True
+        #     )
+        #     ax.add_patch(circle)
+
+        ax.set_title("Phân cụm KMeans (PCA 2D)")
+        ax.set_xlabel("PCA Dimension 1")
+        ax.set_ylabel("PCA Dimension 2")
+        ax.legend(loc="best", fontsize=8)
+        ax.grid(True, linestyle="--", alpha=0.3)
+        figure.tight_layout()
