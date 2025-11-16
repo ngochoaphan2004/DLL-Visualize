@@ -12,16 +12,12 @@ from PyQt6.QtCore import Qt
 
 
 class SearchTermScreen(QWidget):
-    def __init__(self, term_dict, term_list, term_emb_data, doc_emb_data, topic_data, mV):
+    def __init__(self, term_list, mV):
         super().__init__()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         # Init data
-        self.term_dict = term_dict
         self.term_list = term_list
-        self.term_emb_data = term_emb_data
-        self.doc_emb_data = doc_emb_data
-        self.topics_data = topic_data
         self.mV = mV
 
         # --- Search bar ---
