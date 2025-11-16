@@ -12,7 +12,8 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QAction
 
 from screen.PlotScreen import PlotScreen
-from screen.SearchScreen import SearchScreen
+from screen.SearchTermScreen import SearchTermScreen
+from screen.SearchDocsScreen import SearchDocsScreen
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -21,16 +22,19 @@ class MainWindow(QMainWindow):
         self.resize(800, 600)
         self.term_list = []
         self.term_dict = {}
+        self.doc_list = []
 
         self.read_file()
 
         # Create stacked widget
         self.stacked = QStackedWidget()
-        self.search_screen = SearchScreen(self.term_dict, self.term_list, self.term_emb_data, self.doc_emb_data, self.topic_data, self.mV)
+        self.search_term_screen = SearchTermScreen(self.term_list, self.mV)
+        self.search_doc_screen = SearchDocsScreen(self.mU, self.doc_list)
         self.plot_screen = PlotScreen(self.term_dict, self.term_list, self.term_emb_data, self.doc_emb_data, self.topic_data)
 
         self.stacked.addWidget(self.plot_screen)
-        self.stacked.addWidget(self.search_screen)
+        self.stacked.addWidget(self.search_term_screen)
+        self.stacked.addWidget(self.search_doc_screen)
 
         self.setCentralWidget(self.stacked)
 
@@ -41,12 +45,16 @@ class MainWindow(QMainWindow):
         plot_action = QAction("Plot", self)
         plot_action.triggered.connect(lambda: self.stacked.setCurrentWidget(self.plot_screen))
 
-        search_action = QAction("Term", self)
-        search_action.triggered.connect(lambda: self.stacked.setCurrentWidget(self.search_screen))
+        search_term_action = QAction("Term Relevance", self)
+        search_term_action.triggered.connect(lambda: self.stacked.setCurrentWidget(self.search_term_screen))
+
+        search_doc_action = QAction("Doc Relevance", self)
+        search_doc_action.triggered.connect(lambda: self.stacked.setCurrentWidget(self.search_doc_screen))
 
 
         toolbar.addAction(plot_action)
-        toolbar.addAction(search_action)
+        toolbar.addAction(search_term_action)
+        toolbar.addAction(search_doc_action)
     
     def read_file(self):
         def read_json_file(path):
@@ -77,6 +85,12 @@ class MainWindow(QMainWindow):
                 self.term_list.append(item["term"])
                 self.term_dict[item["term"]] = np.array(item["embedding"])
                 self.mV[index] = item["embedding"]
+
+        self.mU = np.zeros((len(doc_emb_data), len(doc_emb_data[0]["embedding"]))) # V matrix
+        for index, item in enumerate(doc_emb_data):
+            if "embedding" in item:
+                self.doc_list.append(item["title"].strip().lower())
+                self.mU[index] = item["embedding"]
 
         # mSl = len(topic_data)
         # self.mS = np.zeros((mSl, mSl)) # S matrix
