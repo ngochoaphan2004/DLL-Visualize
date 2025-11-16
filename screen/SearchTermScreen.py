@@ -11,8 +11,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 
-class SearchScreen(QWidget):
-    def __init__(self, term_dict, term_list, term_emb_data, doc_emb_data, topic_data, mSV):
+class SearchTermScreen(QWidget):
+    def __init__(self, term_dict, term_list, term_emb_data, doc_emb_data, topic_data, mV):
         super().__init__()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -22,12 +22,12 @@ class SearchScreen(QWidget):
         self.term_emb_data = term_emb_data
         self.doc_emb_data = doc_emb_data
         self.topics_data = topic_data
-        self.mSV = mSV
+        self.mV = mV
 
         # --- Search bar ---
         search_bar = QHBoxLayout()
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Enter one term to get term simular...")
+        self.search_input.setPlaceholderText("Enter one term to get term relevance...")
         self.search_input.setFixedHeight(35)
         self.search_input.setStyleSheet("""
             QLineEdit { 
@@ -91,7 +91,7 @@ class SearchScreen(QWidget):
 
         # Compute similarity
         scores = []
-        for i, v in enumerate(self.mSV):
+        for i, v in enumerate(self.mV):
             if i == index:
                 continue
             score = self._cosine(value, v)
@@ -119,7 +119,7 @@ class SearchScreen(QWidget):
             if t in self.term_list:
                 try:
                     index  = self.term_list.index(t)
-                    return index, self.mSV[index]
+                    return index, self.mV[index]
                 except:
                     return None, None
         return None, None
