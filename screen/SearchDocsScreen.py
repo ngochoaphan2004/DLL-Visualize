@@ -22,7 +22,7 @@ class SearchDocsScreen(QWidget):
 
         search_bar = QHBoxLayout()
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Enter document title to get similar documents...")
+        self.search_input.setPlaceholderText("Enter document title to get similar documents (at less 3 characters)...")
         self.search_input.setFixedHeight(35)
         self.search_input.setStyleSheet("""
             QLineEdit { 
@@ -83,7 +83,7 @@ class SearchDocsScreen(QWidget):
     def _get_search_text(self):
         text = self.search_input.text().strip().lower()
 
-        if not text:
+        if not text or len(text) < 3:
             return None, None
 
         matches = [title for title in self.doc_list if text in title.lower()]
