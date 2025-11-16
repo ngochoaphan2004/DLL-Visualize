@@ -14,6 +14,7 @@ from PyQt6.QtGui import QAction
 from screen.PlotScreen import PlotScreen
 from screen.SearchTermScreen import SearchTermScreen
 from screen.SearchDocsScreen import SearchDocsScreen
+from screen.SearchTermDocsScreen import SearchTermDocsScreen
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -30,11 +31,13 @@ class MainWindow(QMainWindow):
         self.stacked = QStackedWidget()
         self.search_term_screen = SearchTermScreen(self.term_list, self.mV)
         self.search_doc_screen = SearchDocsScreen(self.mU, self.doc_list)
+        self.search_termdoc_screen = SearchTermDocsScreen(self.mU, self.mV, self.doc_list, self.term_list)
         self.plot_screen = PlotScreen(self.term_dict, self.term_list, self.term_emb_data, self.doc_emb_data, self.topic_data)
 
         self.stacked.addWidget(self.plot_screen)
         self.stacked.addWidget(self.search_term_screen)
         self.stacked.addWidget(self.search_doc_screen)
+        self.stacked.addWidget(self.search_termdoc_screen)
 
         self.setCentralWidget(self.stacked)
 
@@ -51,10 +54,14 @@ class MainWindow(QMainWindow):
         search_doc_action = QAction("Doc Relevance", self)
         search_doc_action.triggered.connect(lambda: self.stacked.setCurrentWidget(self.search_doc_screen))
 
+        search_termdoc_action = QAction("TermDoc Relevance", self)
+        search_termdoc_action.triggered.connect(lambda: self.stacked.setCurrentWidget(self.search_termdoc_screen))
+
 
         toolbar.addAction(plot_action)
         toolbar.addAction(search_term_action)
         toolbar.addAction(search_doc_action)
+        toolbar.addAction(search_termdoc_action)
     
     def read_file(self):
         def read_json_file(path):
@@ -91,17 +98,6 @@ class MainWindow(QMainWindow):
             if "embedding" in item:
                 self.doc_list.append(item["title"].strip().lower())
                 self.mU[index] = item["embedding"]
-
-        # mSl = len(topic_data)
-        # self.mS = np.zeros((mSl, mSl)) # S matrix
-        # for index, item in enumerate(topic_data):
-        #         self.mS[index][index] = item["singular_value"]
-
-        # self.mSV = np.dot(self.mS, self.mV.T)
-
-        # for i, v in enumerate(self.mSV):
-        #     self.mSV[i] = v/norm(v)
-                
 
 
 # ========== RUN ==========
