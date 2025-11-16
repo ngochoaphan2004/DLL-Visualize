@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import numpy as np
+from numpy.linalg import norm
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit,
@@ -25,7 +26,7 @@ class MainWindow(QMainWindow):
 
         # Create stacked widget
         self.stacked = QStackedWidget()
-        self.search_screen = SearchScreen(self.term_dict, self.term_list, self.term_emb_data, self.doc_emb_data, self.topic_data)
+        self.search_screen = SearchScreen(self.term_dict, self.term_list, self.term_emb_data, self.doc_emb_data, self.topic_data, self.mV)
         self.plot_screen = PlotScreen(self.term_dict, self.term_list, self.term_emb_data, self.doc_emb_data, self.topic_data)
 
         self.stacked.addWidget(self.plot_screen)
@@ -40,7 +41,7 @@ class MainWindow(QMainWindow):
         plot_action = QAction("Plot", self)
         plot_action.triggered.connect(lambda: self.stacked.setCurrentWidget(self.plot_screen))
 
-        search_action = QAction("Search", self)
+        search_action = QAction("Term", self)
         search_action.triggered.connect(lambda: self.stacked.setCurrentWidget(self.search_screen))
 
 
@@ -70,10 +71,23 @@ class MainWindow(QMainWindow):
         self.doc_emb_data = doc_emb_data
         self.topic_data = topic_data
 
-        for item in term_emb_data:
+        self.mV = np.zeros((len(term_emb_data), len(term_emb_data[0]["embedding"]))) # V matrix
+        for index, item in enumerate(term_emb_data):
             if "term" in item and "embedding" in item:
                 self.term_list.append(item["term"])
                 self.term_dict[item["term"]] = np.array(item["embedding"])
+                self.mV[index] = item["embedding"]
+
+        # mSl = len(topic_data)
+        # self.mS = np.zeros((mSl, mSl)) # S matrix
+        # for index, item in enumerate(topic_data):
+        #         self.mS[index][index] = item["singular_value"]
+
+        # self.mSV = np.dot(self.mS, self.mV.T)
+
+        # for i, v in enumerate(self.mSV):
+        #     self.mSV[i] = v/norm(v)
+                
 
 
 # ========== RUN ==========
